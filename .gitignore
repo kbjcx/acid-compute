@@ -1,0 +1,10 @@
+**/*.log
+build
+cmake-build-debug
+cmake-build-release
+.idea
+.vscode
+.cache
+.fleet
+bin
+lib
