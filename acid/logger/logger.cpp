@@ -450,7 +450,6 @@ void FileLogAppender::log(LogLevel::Level level, LogEvent::ptr event) {
         // std::cout << formatter_->format(event) << std::endl;
         // file_stream_ << formatter_->format(event);
         m_async_logger_appender->append(formatter_->format(event));
-        file_stream_.flush();
     }
 }
 
