@@ -13,8 +13,7 @@ namespace acid {
 
 static auto logger = GET_LOGGER_BY_NAME("system");
 
-ByteArray::Node::Node(size_t size)
-    : ptr(new char[size]), next(nullptr), size(size) {
+ByteArray::Node::Node(size_t size) : ptr(new char[size]), next(nullptr), size(size) {
 }
 
 ByteArray::Node::Node() : ptr(nullptr), next(nullptr), size(0) {
@@ -26,11 +25,12 @@ ByteArray::Node::~Node() {
     }
 }
 
-ByteArray::ByteArray(size_t base_size)
+ByteArray::ByteArray(size_t base_size, std::endian en)
     : m_base_size(base_size)
     , m_position(0)
     , m_capacity(base_size)
     , m_size(0)
+    , m_endian(en)
     , m_root(new Node(base_size))
     , m_cur(m_root) {
 }
@@ -53,34 +53,27 @@ void ByteArray::write_fix_uint8(uint8_t value) {
 }
 
 void ByteArray::write_fix_int16(int16_t value) {
-    // 转为大端序
-    value = host_to_network(value);
-    write(&value, sizeof(value));
+    write_fix_int(value);
 }
 
 void ByteArray::write_fix_uint16(uint16_t value) {
-    value = host_to_network(value);
-    write(&value, sizeof(value));
+    write_fix_int(value);
 }
 
 void ByteArray::write_fix_int32(int32_t value) {
-    value = host_to_network(value);
-    write(&value, sizeof(value));
+    write_fix_int(value);
 }
 
 void ByteArray::write_fix_uint32(uint32_t value) {
-    value = host_to_network(value);
-    write(&value, sizeof(value));
+    write_fix_int(value);
 }
 
 void ByteArray::write_fix_int64(int64_t value) {
-    value = host_to_network(value);
-    write(&value, sizeof(value));
+    write_fix_int(value);
 }
 
 void ByteArray::write_fix_uint64(uint64_t value) {
-    value = host_to_network(value);
-    write(&value, sizeof(value));
+    write_fix_int(value);
 }
 
 // zigzag编码，解决varint对负数编码效率低的问题，因为负数的符号位为1,无法进行压缩
@@ -182,42 +175,40 @@ uint8_t ByteArray::read_fix_uint8() {
     return v;
 }
 
+#define XX(type)                           \
+    type v;                                \
+    read(&v, sizeof(v));                   \
+    if (m_endian == std::endian::native) { \
+        return v;                          \
+    }                                      \
+    else {                                 \
+        return byte_swap(v);               \
+    }
+
 int16_t ByteArray::read_fix_int16() {
-    int16_t v;
-    read(&v, sizeof(v));
-    // 转回主机字节序
-    return network_to_host(v);
+    XX(int16_t);
 }
 
 uint16_t ByteArray::read_fix_uint16() {
-    uint16_t v;
-    read(&v, sizeof(v));
-    return network_to_host(v);
+    XX(uint16_t);
 }
 
 int32_t ByteArray::read_fix_int32() {
-    int32_t v;
-    read(&v, sizeof(v));
-    return network_to_host(v);
+    XX(int32_t);
 }
 
 uint32_t ByteArray::read_fix_uint32() {
-    uint32_t v;
-    read(&v, sizeof(v));
-    return network_to_host(v);
+    XX(uint32_t);
 }
 
 int64_t ByteArray::read_fix_int64() {
-    int64_t v;
-    read(&v, sizeof(v));
-    return network_to_host(v);
+    XX(int64_t);
 }
 
 uint64_t ByteArray::read_fix_uint64() {
-    uint64_t v;
-    read(&v, sizeof(v));
-    return network_to_host(v);
+    XX(uint64_t);
 }
+#undef XX
 
 int32_t ByteArray::read_var_int32() {
     return decode_zigzag32(read_var_uint32());
@@ -438,8 +429,7 @@ bool ByteArray::write_to_file(const std::string& filename) const {
     // std::ios::trunc表示打开前清空文件，不存在则创建文件
     ofs.open(filename, std::ios::trunc | std::ios::binary);
     if (!ofs) {
-        LOG_ERROR(logger) << "writeToFile name=" << filename
-                          << " error , errno=" << errno
+        LOG_ERROR(logger) << "writeToFile name=" << filename << " error , errno=" << errno
                           << " errstr=" << strerror(errno);
         return false;
     }
@@ -449,10 +439,10 @@ bool ByteArray::write_to_file(const std::string& filename) const {
 
     while (read_size > 0) {
         int64_t diff = pos % static_cast<int64_t>(m_base_size);
-        int64_t len = (read_size > static_cast<int64_t>(m_base_size)
-                           ? static_cast<int64_t>(m_base_size)
-                           : read_size) -
-                      diff;
+        int64_t len =
+            (read_size > static_cast<int64_t>(m_base_size) ? static_cast<int64_t>(m_base_size)
+                                                           : read_size) -
+            diff;
         ofs.write(cur->ptr + diff, len);
         cur = cur->next;
         pos += len;
@@ -465,13 +455,11 @@ bool ByteArray::read_from_file(const std::string& filename) {
     std::ifstream ifs;
     ifs.open(filename, std::ios::binary);
     if (!ifs) {
-        LOG_ERROR(logger) << "readFromFile name=" << filename
-                          << " error, errno=" << errno
+        LOG_ERROR(logger) << "readFromFile name=" << filename << " error, errno=" << errno
                           << " errstr=" << strerror(errno);
         return false;
     }
-    std::shared_ptr<char> buffer(new char[m_base_size],
-                                 [](const char* ptr) { delete[] ptr; });
+    std::shared_ptr<char> buffer(new char[m_base_size], [](const char* ptr) { delete[] ptr; });
     while (!ifs.eof()) {
         ifs.read(buffer.get(), m_base_size);
         // 分多次将文件写入Byterray Node缓存
@@ -530,14 +518,12 @@ std::string ByteArray::to_hex_string() {
         }
         // std::hex只会输出有效的十六进制位，忽略高位0, 利用std::setw(2) <<
         // std::setfill('0')补全两位
-        ss << std::setw(2) << std::setfill('0') << std::hex
-           << (int) (uint8_t) result[i] << " ";
+        ss << std::setw(2) << std::setfill('0') << std::hex << (int) (uint8_t) result[i] << " ";
     }
     return ss.str();
 }
 
-uint64_t ByteArray::get_read_buffers(std::vector<iovec>& buffers,
-                                     uint64_t len) const {
+uint64_t ByteArray::get_read_buffers(std::vector<iovec>& buffers, uint64_t len) const {
     len = len > get_read_size() ? get_read_size() : len;
     if (len == 0) {
         return 0;
@@ -608,8 +594,7 @@ uint64_t ByteArray::get_read_buffers(std::vector<iovec>& buffers, uint64_t len,
     return size;
 }
 
-uint64_t ByteArray::get_write_buffers(std::vector<iovec>& buffers,
-                                      uint64_t len) {
+uint64_t ByteArray::get_write_buffers(std::vector<iovec>& buffers, uint64_t len) {
     if (len == 0) {
         return 0;
     }

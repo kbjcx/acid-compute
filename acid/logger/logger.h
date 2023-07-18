@@ -322,7 +322,7 @@ public:
     virtual std::string to_yaml_string() = 0;
 
 protected:
-    MutexType mutex_;
+    MutexType m_mutex;
     LogFormatter::ptr formatter_;
     LogLevel::Level level_;
 };
@@ -404,7 +404,7 @@ private:
     std::string name_;
     LogLevel::Level level_;
     std::vector<LogAppender::ptr> appenders_;
-    MutexType mutex_;
+    MutexType m_mutex;
 
 };  // class Logger
 
@@ -445,7 +445,7 @@ public:
 private:
     std::map<std::string, Logger::ptr> loggers_;
     Logger::ptr root_;
-    MutexType mutex_;
+    MutexType m_mutex;
 
 };  // class LogManager
 

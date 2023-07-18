@@ -29,7 +29,7 @@ public:
     void notify();
 
 private:
-    sem_t semaphore_;
+    sem_t m_semaphore;
 };  // class Semaphore : public Noncopyable
 
 /*!
@@ -38,7 +38,7 @@ private:
 template <class T>
 class ScopedLockImpl {
 public:
-    explicit ScopedLockImpl(T &mutex) : mutex_(mutex), is_locked_(false) {
+    explicit ScopedLockImpl(T &mutex) : m_mutex(mutex), m_is_locked(false) {
         lock();
     }
 
@@ -47,22 +47,29 @@ public:
     }
 
     void lock() {
-        if (!is_locked_) {
-            mutex_.lock();
-            is_locked_ = true;
+        if (!m_is_locked) {
+            m_mutex.lock();
+            m_is_locked = true;
         }
     }
 
+    bool try_lock() {
+        if (!m_is_locked) {
+            m_is_locked = m_mutex.try_lock();
+        }
+        return m_is_locked;
+    }
+
     void unlock() {
-        if (is_locked_) {
-            mutex_.unlock();
-            is_locked_ = false;
+        if (m_is_locked) {
+            m_mutex.unlock();
+            m_is_locked = false;
         }
     }
 
 private:
-    T &mutex_;
-    bool is_locked_;
+    T &m_mutex;
+    bool m_is_locked;
 
 };  // class ScopedLockImpl
 
@@ -72,7 +79,7 @@ private:
 template <class T>
 class ReadScopedLockImpl {
 public:
-    explicit ReadScopedLockImpl(T &mutex) : mutex_(mutex), is_locked_(false) {
+    explicit ReadScopedLockImpl(T &mutex) : m_mutex(mutex), m_is_locked(false) {
         lock();
     }
 
@@ -81,22 +88,22 @@ public:
     }
 
     void lock() {
-        if (!is_locked_) {
-            mutex_.rdlock();
-            is_locked_ = true;
+        if (!m_is_locked) {
+            m_mutex.rdlock();
+            m_is_locked = true;
         }
     }
 
     void unlock() {
-        if (is_locked_) {
-            mutex_.unlock();
-            is_locked_ = false;
+        if (m_is_locked) {
+            m_mutex.unlock();
+            m_is_locked = false;
         }
     }
 
 private:
-    T &mutex_;
-    bool is_locked_;
+    T &m_mutex;
+    bool m_is_locked;
 
 };  // class ReadScopedLockImpl
 
@@ -107,7 +114,7 @@ private:
 template <class T>
 class WriteScopedLockImpl {
 public:
-    explicit WriteScopedLockImpl(T &mutex) : mutex_(mutex), is_locked_(false) {
+    explicit WriteScopedLockImpl(T &mutex) : m_mutex(mutex), m_is_locked(false) {
         lock();
     }
 
@@ -116,22 +123,22 @@ public:
     }
 
     void lock() {
-        if (!is_locked_) {
-            mutex_.wrlock();
-            is_locked_ = true;
+        if (!m_is_locked) {
+            m_mutex.wrlock();
+            m_is_locked = true;
         }
     }
 
     void unlock() {
-        if (is_locked_) {
-            mutex_.unlock();
-            is_locked_ = false;
+        if (m_is_locked) {
+            m_mutex.unlock();
+            m_is_locked = false;
         }
     }
 
 private:
-    T &mutex_;
-    bool is_locked_;
+    T &m_mutex;
+    bool m_is_locked;
 
 };  // class WriteScopedLockImpl
 
@@ -149,6 +156,9 @@ public:
     void lock() {
     }
 
+    bool try_lock() {
+    }
+
     void unlock() {
     }
 
@@ -164,27 +174,31 @@ public:
     using Lock = ScopedLockImpl<Mutex>;
 
     Mutex() {
-        pthread_mutex_init(&mutex_, nullptr);
+        pthread_mutex_init(&m_mutex, nullptr);
     }
 
     ~Mutex() {
-        pthread_mutex_destroy(&mutex_);
+        pthread_mutex_destroy(&m_mutex);
     }
 
     void lock() {
-        pthread_mutex_lock(&mutex_);
+        pthread_mutex_lock(&m_mutex);
+    }
+
+    bool try_lock() {
+        return pthread_mutex_trylock(&m_mutex) == 0;
     }
 
     void unlock() {
-        pthread_mutex_unlock(&mutex_);
+        pthread_mutex_unlock(&m_mutex);
     }
 
     pthread_mutex_t *get() {
-        return &mutex_;
+        return &m_mutex;
     }
 
 private:
-    pthread_mutex_t mutex_;
+    pthread_mutex_t m_mutex;
 
 };  // class Mutex : public Noncopyable
 
@@ -213,27 +227,27 @@ public:
     using WriteLock = WriteScopedLockImpl<RWMutex>;
 
     RWMutex() {
-        pthread_rwlock_init(&mutex_, nullptr);
+        pthread_rwlock_init(&m_mutex, nullptr);
     }
 
     ~RWMutex() {
-        pthread_rwlock_destroy(&mutex_);
+        pthread_rwlock_destroy(&m_mutex);
     }
 
     void rdlock() {
-        pthread_rwlock_rdlock(&mutex_);
+        pthread_rwlock_rdlock(&m_mutex);
     }
 
     void wrlock() {
-        pthread_rwlock_wrlock(&mutex_);
+        pthread_rwlock_wrlock(&m_mutex);
     }
 
     void unlock() {
-        pthread_rwlock_unlock(&mutex_);
+        pthread_rwlock_unlock(&m_mutex);
     }
 
 private:
-    pthread_rwlock_t mutex_;
+    pthread_rwlock_t m_mutex;
 
 };  // class RWMutex : public Noncopyable
 
@@ -245,23 +259,27 @@ public:
     using Lock = ScopedLockImpl<Spinlock>;
 
     Spinlock() {
-        pthread_spin_init(&mutex_, 0);
+        pthread_spin_init(&m_mutex, 0);
     }
 
     ~Spinlock() {
-        pthread_spin_destroy(&mutex_);
+        pthread_spin_destroy(&m_mutex);
     }
 
     void lock() {
-        pthread_spin_lock(&mutex_);
+        pthread_spin_lock(&m_mutex);
+    }
+
+    bool try_lock() {
+        return pthread_spin_trylock(&m_mutex) == 0;
     }
 
     void unlock() {
-        pthread_spin_unlock(&mutex_);
+        pthread_spin_unlock(&m_mutex);
     }
 
 private:
-    pthread_spinlock_t mutex_;
+    pthread_spinlock_t m_mutex;
 
 };  // class Spinlock : public Noncopyable
 
@@ -270,22 +288,22 @@ public:
     using Lock = ScopedLockImpl<CASLock>;
 
     CASLock() {
-        mutex_.clear();
+        m_mutex.clear();
     }
 
     ~CASLock() = default;
 
     void lock() {
-        while (std::atomic_flag_test_and_set_explicit(&mutex_, std::memory_order_acquire))
-            ;
+        while (std::atomic_flag_test_and_set_explicit(&m_mutex, std::memory_order_acquire)) {
+        }
     }
 
     void unlock() {
-        std::atomic_flag_clear_explicit(&mutex_, std::memory_order_release);
+        std::atomic_flag_clear_explicit(&m_mutex, std::memory_order_release);
     }
 
 private:
-    volatile std::atomic_flag mutex_;
+    volatile std::atomic_flag m_mutex;
 
 };  // class CASLock : public Noncopyable
 
@@ -293,14 +311,14 @@ private:
 class Cond {
 public:
     Cond() {
-        pthread_cond_init(&cond_, nullptr);
+        pthread_cond_init(&m_cond, nullptr);
     }
     ~Cond() {
-        pthread_cond_destroy(&cond_);
+        pthread_cond_destroy(&m_cond);
     }
 
     void wait(Mutex *mutex) {
-        pthread_cond_wait(&cond_, mutex->get());
+        pthread_cond_wait(&m_cond, mutex->get());
     }
 
     bool wait_timeout(Mutex *mutex, int ms) {
@@ -310,22 +328,22 @@ public:
         clock_gettime(CLOCK_REALTIME, &now);
         abs_time.tv_sec = now.tv_sec + ms / 1000;
         abs_time.tv_nsec = now.tv_nsec + ms % 1000 * 1000 * 1000;
-        if (pthread_cond_timedwait(&cond_, mutex->get(), &abs_time) == 0) {
+        if (pthread_cond_timedwait(&m_cond, mutex->get(), &abs_time) == 0) {
             return true;
         }
         return false;
     }
 
     void signal() {
-        pthread_cond_signal(&cond_);
+        pthread_cond_signal(&m_cond);
     }
 
     void broadcast() {
-        pthread_cond_broadcast(&cond_);
+        pthread_cond_broadcast(&m_cond);
     }
 
 private:
-    pthread_cond_t cond_;
+    pthread_cond_t m_cond;
 };
 
 }  // namespace acid

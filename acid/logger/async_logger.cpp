@@ -19,8 +19,8 @@ void LogBuffer::append(const char* buffer, size_t len) {
 AsyncLogger::AsyncLogger(std::string file)
     : file_(file)
     , run_(true)
-    , mutex_(Mutex())
-    , cond_(Cond())
+    , m_mutex(Mutex())
+    , m_cond(Cond())
     , file_fd(nullptr)
     , cur_buffer_(nullptr) {
     file_fd = fopen(file_.c_str(), "w");
@@ -51,12 +51,12 @@ AsyncLogger::~AsyncLogger() {
     run_ = false;
 
     // 释放所有等待写的日志写入
-    cond_.broadcast();
+    m_cond.broadcast();
 }
 
 void AsyncLogger::append(const std::string log_line) {
     int len = log_line.size();
-    Mutex::Lock lock(mutex_);
+    Mutex::Lock lock(m_mutex);
     if (cur_buffer_->available() > len) {
         cur_buffer_->append(log_line.c_str(), len);
     }
@@ -66,14 +66,14 @@ void AsyncLogger::append(const std::string log_line) {
 
         while (free_buffers_.empty()) {
             // 通知写出线程将已有buffer写入文件
-            cond_.signal();
-            cond_.wait(&mutex_);
+            m_cond.signal();
+            m_cond.wait(&m_mutex);
         }
 
         cur_buffer_ = free_buffers_.front();
         cur_buffer_->append(log_line.c_str(), len);
         // 通知其他线程可写
-        cond_.signal();
+        m_cond.signal();
     }
 }
 
@@ -83,8 +83,8 @@ void AsyncLogger::start() {
 
 void AsyncLogger::run() {
     while (run_) {
-        Mutex::Lock lock_guard(mutex_);
-        bool ret = cond_.wait_timeout(&mutex_, 3000);
+        Mutex::Lock lock_guard(m_mutex);
+        bool ret = m_cond.wait_timeout(&m_mutex, 3000);
         if (!run_) break;
 
         if (ret) {
@@ -100,7 +100,7 @@ void AsyncLogger::run() {
             }
 
             // 当free为空时说明写入日志在wait，需要唤醒
-            if (empty) cond_.signal();
+            if (empty) m_cond.signal();
         }
         else {
             if (cur_buffer_->length() == 0) {

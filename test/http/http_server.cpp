@@ -78,5 +78,5 @@ int main(int argc, char** argv) {
     logger->add_appender(
         acid::LogAppender::ptr(new acid::FileLogAppender("root.log", acid::LogLevel::DEBUG)));
     // logger->add_appender(acid::LogAppender::ptr(new acid::StdoutLogAppender));
-    return acid::start_daemon(argc, argv, main_run, true);
+    return acid::start_daemon(argc, argv, main_run, argc != 1);
 }

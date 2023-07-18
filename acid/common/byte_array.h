@@ -5,6 +5,8 @@
 #ifndef DF_BYTE_ARRAY_H
 #define DF_BYTE_ARRAY_H
 
+#include "acid/common/util.h"
+
 #include <memory>
 #include <stdint.h>
 #include <string>
@@ -38,9 +40,17 @@ public:
     };
 
     // 使用指定长度的内存块构建bytearray
-    ByteArray(size_t base_size = 4096);
+    ByteArray(size_t base_size = 4096, std::endian en = std::endian::big);
 
     ~ByteArray();
+
+    template <class T>
+    void write_fix_int(T value) {
+        if (m_endian != std::endian::native) {
+            value = byte_swap(value);
+        }
+        write(&value, sizeof(value));
+    }
 
     // 写入固定长度int8_t的数据，
     void write_fix_int8(int8_t value);
@@ -160,9 +170,18 @@ public:
         return m_size - m_position;
     }
 
-    bool is_little_endian() const;
+    bool is_little_endian() const {
+        return m_endian == std::endian::little;
+    }
 
-    void set_is_little_endian(bool is);
+    void set_is_little_endian(bool is_little) {
+        if (is_little) {
+            m_endian = std::endian::little;
+        }
+        else {
+            m_endian = std::endian::big;
+        }
+    }
 
     // 将bytearray里面的数据转为string（m_position到m_size）
     std::string to_string();
@@ -176,8 +195,7 @@ public:
      * @param[in] len 读取数据的长度
      * @return 实际读取的长度
      */
-    uint64_t get_read_buffers(std::vector<iovec>& buffers,
-                              uint64_t len = ~0ull) const;
+    uint64_t get_read_buffers(std::vector<iovec>& buffers, uint64_t len = ~0ull) const;
 
     /*!
      * @brief 获取可读取的缓存，保存为iovec数组
@@ -186,8 +204,7 @@ public:
      * @param[in] position 读取数据的位置
      * @return 实际读取的长度
      */
-    uint64_t get_read_buffers(std::vector<iovec>& buffers, uint64_t len,
-                              uint64_t position) const;
+    uint64_t get_read_buffers(std::vector<iovec>& buffers, uint64_t len, uint64_t position) const;
 
     /**
      * @brief 获取可写入的缓存,保存成iovec数组
@@ -215,7 +232,7 @@ private:
     size_t m_position;
     size_t m_capacity;
     size_t m_size;
-    int8_t m_endian; // 默认使用大端序
+    std::endian m_endian;  // 默认使用大端序
     Node* m_root;
     Node* m_cur;
 };

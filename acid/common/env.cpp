@@ -2,9 +2,9 @@
 
 #include "acid/logger/logger.h"
 
+#include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <cstring>
 
 namespace acid {
 
@@ -57,35 +57,35 @@ bool Env::init(int argc, char** argv) {
 }
 
 void Env::add(const std::string& key, const std::string& val) {
-    WriteLockGuard lock(mutex_);
+    WriteLockGuard lock(m_mutex);
     args_[key] = val;
 }
 
 bool Env::has(const std::string& key) {
-    ReadLockGuard lock(mutex_);
+    ReadLockGuard lock(m_mutex);
     auto it = args_.find(key);
     return it != args_.end();
 }
 
 void Env::del(const std::string& key) {
-    WriteLockGuard lock(mutex_);
+    WriteLockGuard lock(m_mutex);
     args_.erase(key);
 }
 
 std::string Env::get(const std::string& key, const std::string& default_value) {
-    ReadLockGuard lock(mutex_);
+    ReadLockGuard lock(m_mutex);
     auto it = args_.find(key);
     return it != args_.end() ? it->second : default_value;
 }
 
 void Env::add_help(const std::string& key, const std::string& description) {
     remove_help(key);
-    WriteLockGuard lock(mutex_);
+    WriteLockGuard lock(m_mutex);
     helps_.emplace_back(key, description);
 }
 
 void Env::remove_help(const std::string& key) {
-    WriteLockGuard lock(mutex_);
+    WriteLockGuard lock(m_mutex);
     for (auto it = helps_.begin(); it != helps_.end();) {
         if (it->first == key) {
             it = helps_.erase(it);
@@ -97,7 +97,7 @@ void Env::remove_help(const std::string& key) {
 }
 
 void Env::print_help() {
-    ReadLockGuard lock(mutex_);
+    ReadLockGuard lock(m_mutex);
     std::cout << "Usage: " << program_ << " [options]" << std::endl;
     for (auto& help : helps_) {
         std::cout << std::setw(5) << "-" << help.first << " : " << help.second << std::endl;

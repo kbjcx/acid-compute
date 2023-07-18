@@ -71,9 +71,13 @@ public:
      */
     void print_help();
 
-    const std::string& get_exe() const { return exe_; }
+    const std::string& get_exe() const {
+        return exe_;
+    }
 
-    const std::string& get_cwd() const { return cwd_; }
+    const std::string& get_cwd() const {
+        return cwd_;
+    }
 
     bool set_env(const std::string& key, const std::string& val);
 
@@ -91,7 +95,7 @@ public:
     std::string get_config_path();
 
 private:
-    RWMutexType mutex_;
+    RWMutexType m_mutex;
     std::map<std::string, std::string> args_;
     std::vector<std::pair<std::string, std::string>> helps_;
 

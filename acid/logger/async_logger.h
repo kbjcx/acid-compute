@@ -78,8 +78,8 @@ public:
 private:
     enum { BUFFER_NUM = 4 };
 
-    Mutex mutex_;
-    Cond cond_;
+    Mutex m_mutex;
+    Cond m_cond;
     std::string file_;
     FILE* file_fd;
     bool run_;
