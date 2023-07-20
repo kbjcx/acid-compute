@@ -23,21 +23,26 @@
 
 namespace acid::rpc {
 
+// 连接池向注册中心订阅的前缀
 inline const char* RPC_SERVICE_SUBSCRIBE = "[[rpc service subscribe]]";
 
+// 结果返回类型
 template <class T>
 struct return_type {
     using type = T;
 };
 
+// void类型特化为int8_t
 template <>
 struct return_type<void> {
     using type = int8_t;
 };
 
+// 取类型
 template <class T>
 using return_type_t = typename return_type<T>::type;
 
+// Rpc调用状态
 enum RpcState {
     RPC_SUCCESS = 0,  // 成功
     RPC_FAIL,         // 失败
@@ -55,30 +60,58 @@ enum RpcState {
 template <class T = void>
 class Result {
 public:
-    using row_type = T;
+    // 纯类型
+    using raw_type = T;
+    // 结果返回类型
     using type = return_type_t<T>;
+    // 调用消息类型
     using message_type = std::string;
+    // 调用状态类型
     using code_type = uint16_t;
 
-    static Result<T> success();
+    static Result<T> success() {
+        Result<T> res;
+        res.set_code(RPC_SUCCESS);
+        res.set_message("success");
+        return res;
+    }
 
-    static Result<T> fail();
+    static Result<T> fail() {
+        Result<T> res;
+        res.set_code(RPC_FAIL);
+        res.set_message("fail");
+        return res;
+    }
 
-    Result();
+    Result() = default;
 
-    bool valid();
+    bool valid() {
+        return m_code == 0;
+    }
 
-    type& get_value();
+    type& get_value() {
+        return m_value;
+    }
 
-    void set_value(const type& value);
+    void set_value(const type& value) {
+        m_value = value;
+    }
 
-    void set_code(code_type code);
+    void set_code(code_type code) {
+        m_code = code;
+    }
 
-    int get_code();
+    int get_code() {
+        return static_cast<int>(m_code);
+    }
 
-    void set_message(message_type message);
+    void set_message(message_type message) {
+        m_message = message;
+    }
 
-    const message_type& get_message();
+    const message_type& get_message() {
+        return m_message;
+    }
 
     type* operator->() noexcept {
         return &m_value;
@@ -88,11 +121,38 @@ public:
         return &m_value;
     }
 
-    std::string to_string();
+    std::string to_string() {
+        std::stringstream ss;
+        ss << "[ code = " << m_code << " message = " << m_message << " value = " << m_value << " ]";
+        return ss.str();
+    }
 
-    friend Serializer& operator>>(Serializer& in, Result<T>& d);
+    /**
+     * @brief 反序列化result
+     *
+     * @param[out] in 序列化的结果
+     * @param[out] d 反序列化到result
+     * @return Serializer&
+     */
+    friend Serializer& operator>>(Serializer& in, Result<T>& result) {
+        in >> result.m_code >> result.m_message;
+        if (result.m_code == 0) {
+            in >> result.m_value;
+        }
+        return in;
+    }
 
-    friend Serializer& operator<<(Serializer& out, Result<T> d);
+    /**
+     * @brief 将result进行序列化
+     *
+     * @param[out] out
+     * @param[in] result
+     * @return Serializer&
+     */
+    friend Serializer& operator<<(Serializer& out, Result<T> result) {
+        out << result.m_code << result.m_message << result.m_value;
+        return out;
+    }
 
 private:
     // 调用状态
