@@ -47,13 +47,21 @@ class Serializer {
 public:
     using ptr = std::shared_ptr<Serializer>;
 
-    Serializer();
+    Serializer() : m_byte_array(std::make_shared<ByteArray>()) {
+    }
 
-    Serializer(ByteArray::ptr byte_array);
+    Serializer(ByteArray::ptr byte_array) : m_byte_array(byte_array) {
+    }
 
-    Serializer(const std::string& in);
+    Serializer(const std::string& in) : m_byte_array(std::make_shared<ByteArray>()) {
+        write_raw_data(in.c_str(), in.size());
+        reset();
+    }
 
-    Serializer(const char* in, int len);
+    Serializer(const char* in, int len) : m_byte_array(std::make_shared<ByteArray>()) {
+        write_raw_data(in, len);
+        reset();
+    }
 
     int size() {
         return m_byte_array->get_size();
@@ -61,7 +69,7 @@ public:
 
     /**
      * @brief 重置偏移, 从头开始读
-     * 
+     *
      */
     void reset() {
         m_byte_array->set_position(0);
@@ -82,9 +90,9 @@ public:
 
     /**
      * @brief 写入原始数据, 不加入长度信息
-     * 
-     * @param in 
-     * @param len 
+     *
+     * @param in
+     * @param len
      */
     void write_raw_data(const char* in, int len) {
         m_byte_array->write(in, len);
@@ -92,95 +100,358 @@ public:
 
     /**
      * @brief 写入数字并不进行压缩
-     * 
-     * @tparam T 
-     * @param value 
+     *
+     * @tparam T
+     * @param value
      */
     template <class T>
     void write_fix_int(T value) {
-        m_byte_array->write_fix_in
+        m_byte_array->write_fix_int(value);
     }
 
-    void clear();
+    void clear() {
+        m_byte_array->clear();
+    }
 
     template <class T>
-    void read(T& t);
+    void read(T& t) {
+        if constexpr (std::is_same_v<T, bool>) {
+            t = m_byte_array->read_fix_int8();
+        }
+        else if constexpr (std::is_same_v<T, float>) {
+            t = m_byte_array->read_float();
+        }
+        else if constexpr (std::is_same_v<T, double>) {
+            t = m_byte_array->read_double();
+        }
+        else if constexpr (std::is_same_v<T, int8_t>) {
+            t = m_byte_array->read_fix_int8();
+        }
+        else if constexpr (std::is_same_v<T, uint8_t>) {
+            t = m_byte_array->read_fix_uint8();
+        }
+        else if constexpr (std::is_same_v<T, int16_t>) {
+            t = m_byte_array->read_fix_int16();
+        }
+        else if constexpr (std::is_same_v<T, uint16_t>) {
+            t = m_byte_array->read_fix_uint16();
+        }
+        else if constexpr (std::is_same_v<T, int32_t>) {
+            t = m_byte_array->read_fix_int32();
+        }
+        else if constexpr (std::is_same_v<T, uint32_t>) {
+            t = m_byte_array->read_fix_uint32();
+        }
+        else if constexpr (std::is_same_v<T, int64_t>) {
+            t = m_byte_array->read_fix_int64();
+        }
+        else if constexpr (std::is_same_v<T, uint64_t>) {
+            t = m_byte_array->read_fix_uint64();
+        }
+        else if constexpr (std::is_same_v<T, std::string>) {
+            t = m_byte_array->read_string_vint();
+        }
+    }
 
     template <class T>
-    void write(T t);
+    void write(T t) {
+        if constexpr (std::is_same_v<T, bool>) {
+            m_byte_array->write_fix_int8(t);
+        }
+        else if constexpr (std::is_same_v<T, float>) {
+            m_byte_array->write_float(t);
+        }
+        else if constexpr (std::is_same_v<T, double>) {
+            m_byte_array->write_double(t);
+        }
+        else if constexpr (std::is_same_v<T, int8_t>) {
+            m_byte_array->write_fix_int8(t);
+        }
+        else if constexpr (std::is_same_v<T, uint8_t>) {
+            m_byte_array->write_fix_uint8(t);
+        }
+        else if constexpr (std::is_same_v<T, int16_t>) {
+            m_byte_array->write_fix_int16(t);
+        }
+        else if constexpr (std::is_same_v<T, uint16_t>) {
+            m_byte_array->write_fix_uint16(t);
+        }
+        else if constexpr (std::is_same_v<T, int32_t>) {
+            m_byte_array->write_fix_int32(t);
+        }
+        else if constexpr (std::is_same_v<T, uint32_t>) {
+            m_byte_array->write_fix_uint32(t);
+        }
+        else if constexpr (std::is_same_v<T, int64_t>) {
+            m_byte_array->write_fix_int64(t);
+        }
+        else if constexpr (std::is_same_v<T, uint64_t>) {
+            m_byte_array->write_fix_uint64(t);
+        }
+        else if constexpr (std::is_same_v<T, std::string>) {
+            m_byte_array->write_string_vint(t);
+        }
+        else if constexpr (std::is_same_v<T, char*>) {
+            m_byte_array->write_string_vint(std::string(t));
+        }
+        else if constexpr (std::is_same_v<T, const char*>) {
+            m_byte_array->write_string_vint(std::string(t));
+        }
+    }
 
 public:
     template <class T>
-    Serializer& operator>>(T& t);
+    Serializer& operator>>(T& t) {
+        read(t);
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const T& t);
+    Serializer& operator<<(const T& t) {
+        write(t);
+        return *this;
+    }
 
     template <class... Args>
-    Serializer& operator>>(std::tuple<Args...>& t);
+    Serializer& operator>>(std::tuple<Args...>& t) {
+        const auto& deserializer = [this]<class Tulpe, std::size_t... Index>(
+                                       Tulpe& t, std::index_sequence<Index...>) {
+            *this >> (... >> std::get<Index>(t));
+        };
+        deserializer(t, std::index_sequence_for<Args...> {});
+        return *this;
+    }
 
     template <class... Args>
-    Serializer& operator<<(const std::tuple<Args...>& t);
+    Serializer& operator<<(const std::tuple<Args...>& t) {
+        const auto& serializer = [this]<class Tuple, std::size_t... Index>(
+                                     Tuple& t, std::index_sequence<Index...>) {
+            *this << (... << std::get<Index>(t));
+        };
+        serializer(t, std::index_sequence_for<Args...> {});
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator>>(std::list<T>& t);
+    Serializer& operator>>(std::list<T>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            T tmp;
+            read(tmp);
+            t.emplace_back(tmp);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const std::list<T>& t);
+    Serializer& operator<<(const std::list<T>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator>>(std::vector<T>& t);
+    Serializer& operator>>(std::vector<T>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            T tmp;
+            read(tmp);
+            t.emplace_back(tmp);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const std::vector<T>& t);
+    Serializer& operator<<(const std::vector<T>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator>>(std::set<T>& t);
+    Serializer& operator>>(std::set<T>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            T tmp;
+            read(tmp);
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const std::set<T>& t);
+    Serializer& operator<<(const std::set<T>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator>>(std::unordered_set<T>& t);
+    Serializer& operator>>(std::unordered_set<T>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            T tmp;
+            read(tmp);
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const std::unordered_set<T>& t);
+    Serializer& operator<<(const std::unordered_set<T>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            write(i);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator>>(std::multiset<T>& t);
+    Serializer& operator>>(std::multiset<T>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            T tmp;
+            read(tmp);
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const std::multiset<T>& t);
+    Serializer& operator<<(const std::multiset<T>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            write(i);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator>>(std::unordered_multiset<T>& t);
+    Serializer& operator>>(std::unordered_multiset<T>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            T tmp;
+            read(tmp);
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class T>
-    Serializer& operator<<(const std::unordered_multiset<T>& t);
+    Serializer& operator<<(const std::unordered_multiset<T>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            write(i);
+        }
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator>>(std::map<K, V>& t);
+    Serializer& operator>>(std::pair<K, V>& t) {
+        *this >> t.first >> t.second;
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator<<(const std::map<K, V>& t);
+    Serializer& operator<<(std::pair<K, V>& t) {
+        *this << t.first << t.second;
+    }
 
     template <class K, class V>
-    Serializer& operator>>(std::unordered_map<K, V>& t);
+    Serializer& operator>>(std::map<K, V>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            std::pair<K, V> tmp;
+            *this >> tmp;
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator<<(const std::unordered_map<K, V>& t);
+    Serializer& operator<<(const std::map<K, V>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator>>(std::multimap<K, V>& t);
+    Serializer& operator>>(std::unordered_map<K, V>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            std::pair<K, V> tmp;
+            *this >> tmp;
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator<<(const std::multimap<K, V>& t);
+    Serializer& operator<<(const std::unordered_map<K, V>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator>>(std::unordered_multimap<K, V>& t);
+    Serializer& operator>>(std::multimap<K, V>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            std::pair<K, V> tmp;
+            *this >> tmp;
+            t.emplace(tmp);
+        }
+        return *this;
+    }
 
     template <class K, class V>
-    Serializer& operator<<(const std::unordered_multimap<K, V>& t);
+    Serializer& operator<<(const std::multimap<K, V>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
+
+    template <class K, class V>
+    Serializer& operator>>(std::unordered_multimap<K, V>& t) {
+        size_t size;
+        read(size);
+        for (size_t i = 0; i < size; ++i) {
+            std::pair<K, V> tmp;
+            *this >> tmp;
+            t.emplace(tmp);
+        }
+        return *this;
+    }
+
+    template <class K, class V>
+    Serializer& operator<<(const std::unordered_multimap<K, V>& t) {
+        write(t.size());
+        for (auto& i : t) {
+            *this << i;
+        }
+        return *this;
+    }
 
 private:
     ByteArray::ptr m_byte_array;

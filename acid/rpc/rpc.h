@@ -12,6 +12,8 @@
 #ifndef ACID_RPC_H
 #define ACID_RPC_H
 
+#include "serializer.h"
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -87,6 +89,18 @@ public:
     }
 
     std::string to_string();
+
+    friend Serializer& operator>>(Serializer& in, Result<T>& d);
+
+    friend Serializer& operator<<(Serializer& out, Result<T> d);
+
+private:
+    // 调用状态
+    code_type m_code = 0;
+    // 调用消息
+    message_type m_message;
+    // 调用结果
+    type m_value;
 };
 
 

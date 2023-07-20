@@ -134,7 +134,7 @@ private:
     uint32_t m_sequence_id = 0;
     uint32_t m_content_length = 0;
     std::string m_content;
-}
+};
 
 
 };  // namespace acid::rpc
