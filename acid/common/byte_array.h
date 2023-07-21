@@ -46,6 +46,7 @@ public:
 
     template <class T>
     void write_fix_int(T value) {
+        // 保存类型不等于主机字节序的话需要进行转化
         if (m_endian != std::endian::native) {
             value = byte_swap(value);
         }

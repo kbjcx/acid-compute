@@ -25,8 +25,10 @@ public:
 
     RpcSession(Socket::ptr socket, bool owner = true);
 
+    // 接收rpc报文
     Protocol::ptr recv_protocol();
 
+    // 发送rpc报文
     ssize_t send_protocol(Protocol::ptr protocol);
 
 private:

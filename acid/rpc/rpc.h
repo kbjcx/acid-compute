@@ -136,7 +136,7 @@ public:
      */
     friend Serializer& operator>>(Serializer& in, Result<T>& result) {
         in >> result.m_code >> result.m_message;
-        if (result.m_code == 0) {
+        if (result.m_code == RPC_SUCCESS) {
             in >> result.m_value;
         }
         return in;

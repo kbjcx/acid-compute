@@ -11,6 +11,7 @@ static ConfigVar<size_t>::ptr g_channel_capacity =
 
 static uint64_t s_channel_capacity = 1;
 
+// 初始化操作, 当需要在main函数之间执行时可以这么写
 struct _RpcClientIniter {
     _RpcClientIniter() {
         s_channel_capacity = g_channel_capacity->get_value();
@@ -94,6 +95,84 @@ bool RpcClient::connect(Address::ptr address) {
     return true;
 }
 
+void RpcClient::handle_send() {
+    Protocol::ptr request;
+    // 通过 Channel 收集调用请求，如果没有消息时 Channel 内部会挂起该协程等待消息到达
+    // Channel 被关闭时会退出循环
+    while (m_channel >> request) {
+        if (!request) {
+            LOG_WARN(logger) << "RpcClient::handle_send() fail";
+            continue;
+        }
+        // 发送请求
+        m_session->send_protocol(request);
+    }
+}
 
+void RpcClient::handle_recv() {
+    if (!m_session->is_connected()) {
+        return;
+    }
+
+    while (true) {
+        // 接收响应
+        Protocol::ptr response = m_session->recv_protocol();
+        if (!response) {
+            LOG_WARN(logger) << "RpcClient::handle_recv() fail";
+            close();
+            break;
+        }
+
+        m_is_heart_close = false;
+        Protocol::MessageType type = response->get_message_type();
+        // 根据响应类型进行处理
+        switch (type) {
+            case Protocol::MessageType::HEARTBEAT_PACKET:
+                m_is_heart_close = false;
+                break;
+            case Protocol::MessageType::RPC_METHOD_RESPONSE:
+                // 处理调用结果
+                handle_method_response(response);
+                break;
+            case Protocol::MessageType::RPC_PUBLISH_RESPONSE:
+                handle_publish(response);
+                break;
+            case Protocol::MessageType::RPC_SUBSCRIBE_RESPONSE:
+                break;
+            default:
+                LOG_DEBUG(logger) << "protocol: " << response->to_string();
+                break;
+        }
+    }
+}
+
+void RpcClient::handle_method_response(Protocol::ptr response) {
+    // 获取该调用结果的序列号
+    uint32_t id = response->get_sequence_id();
+    std::map<uint32_t, Channel<Protocol::ptr>>::iterator it;
+
+    LockGuard lock(m_mutex);
+    // 查找该序列号对应的channel是否还存在
+    it = m_response_handle.find(id);
+    if (it == m_response_handle.end()) {
+        return;
+    }
+
+    // 获取等待结果的channel
+    Channel<Protocol::ptr> channel = it->second;
+    // 向channel发送调用结果
+    channel << response;
+}
+
+void RpcClient::handle_publish(Protocol::ptr protocol) {
+    Serializer s(protocol->get_content());
+    std::string key;
+    s >> key;
+    LockGuard lock(m_sub_mutex);
+    auto it = m_sub_handle.find(key);
+    if (it == m_sub_handle.end()) return;
+
+    it->second(s);
+}
 
 }  // namespace acid::rpc

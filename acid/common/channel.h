@@ -53,7 +53,7 @@ public:
         }
 
         m_queue.push(t);
-        // 队列中有数据了, 可以唤醒条件变量
+        // 队列中有数据了, 可以唤醒出队条件变量
         m_pop_cond.notify();
         return true;
     }

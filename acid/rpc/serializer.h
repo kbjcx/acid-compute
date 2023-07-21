@@ -63,6 +63,7 @@ public:
         reset();
     }
 
+    // 获取byte_array的size
     int size() {
         return m_byte_array->get_size();
     }
@@ -75,15 +76,18 @@ public:
         m_byte_array->set_position(0);
     }
 
+    // 移动byte_array的position指针
     void offset(int off) {
         int old = m_byte_array->get_position();
         m_byte_array->set_position(old + off);
     }
 
+    // 把剩余序列化数据转化为string
     std::string to_string() {
         return m_byte_array->to_string();
     }
 
+    // 获取bye_array
     ByteArray::ptr get_byte_array() {
         return m_byte_array;
     }
@@ -109,10 +113,12 @@ public:
         m_byte_array->write_fix_int(value);
     }
 
+    // 清空序列化的数据
     void clear() {
         m_byte_array->clear();
     }
 
+    // 根据t的类型读取正确的类型
     template <class T>
     void read(T& t) {
         if constexpr (std::is_same_v<T, bool>) {
@@ -153,6 +159,7 @@ public:
         }
     }
 
+    // 根据t的类型写入正确的序列化数据
     template <class T>
     void write(T t) {
         if constexpr (std::is_same_v<T, bool>) {
@@ -212,11 +219,12 @@ public:
         return *this;
     }
 
+    // 利用折叠表达式展开tuple进行序列化
     template <class... Args>
     Serializer& operator>>(std::tuple<Args...>& t) {
         const auto& deserializer = [this]<class Tulpe, std::size_t... Index>(
                                        Tulpe& t, std::index_sequence<Index...>) {
-            *this >> (... >> std::get<Index>(t));
+            (*this >> ... >> std::get<Index>(t));
         };
         deserializer(t, std::index_sequence_for<Args...> {});
         return *this;
@@ -226,7 +234,7 @@ public:
     Serializer& operator<<(const std::tuple<Args...>& t) {
         const auto& serializer = [this]<class Tuple, std::size_t... Index>(
                                      Tuple& t, std::index_sequence<Index...>) {
-            *this << (... << std::get<Index>(t));
+            (*this << ... << std::get<Index>(t));
         };
         serializer(t, std::index_sequence_for<Args...> {});
         return *this;
