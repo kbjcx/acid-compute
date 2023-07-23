@@ -26,11 +26,16 @@
 #include "rpc.h"
 #include "rpc_session.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
+#include <sys/types.h>
+#include <tuple>
+#include <type_traits>
 #include <unordered_map>
+#include <utility>
 
 namespace acid::rpc {
 
@@ -60,7 +65,11 @@ public:
      * @param func 注册的函数
      */
     template <class Func>
-    void register_method(const std::string& name, Func func);
+    void register_method(const std::string& name, Func func) {
+        m_handlers[name] = [func, this](Serializer s, const std::string& arg) {
+            proxy(func, s, arg);
+        };
+    }
 
     void set_name(std::string& name) override;
 
@@ -72,7 +81,29 @@ public:
      * @param data 支持Serializer的数据都可以发布
      */
     template <class T>
-    void publish(const std::string& name, T data);
+    void publish(const std::string& key, T data) {
+        {
+            LockGuard lock(m_sub_mutex);
+            if (m_subscribes.empty()) {
+                return;
+            }
+        }
+
+        Serializer s;
+        s << key << data;
+        s.reset();
+        Protocol::ptr pub =
+            Protocol::create(Protocol::MessageType::RPC_PUBLISH_REQUEST, s.to_string(), 0);
+        LockGuard lock(m_sub_mutex);
+        auto range = m_subscribes.equal_range(key);
+        for (auto it = range.first; it != range.second;) {
+            auto connection = it->second.lock();
+            if (connection == nullptr || !connection->is_connected()) {
+                continue;
+            }
+            connection->send_protocol(pub);
+        }
+    }
 
 protected:
     /**
@@ -100,7 +131,43 @@ protected:
      * @param arg
      */
     template <class Func>
-    void proxy(Func func, Serializer serializer, const std::string& arg);
+    void proxy(Func func, Serializer serializer, const std::string& arg) {
+        typename function_traits<Func>::stl_function_type func_stl(func);
+        using Return = typename function_traits<Func>::return_type;
+        using Args = typename function_traits<Func>::tuple_type;
+
+        Serializer s(arg);
+        Args args;
+        try {
+            s >> args;
+        }
+        catch (...) {
+            Result<Return> res;
+            res.set_code(RPC_NO_MATCH);
+            res.set_code("params not match");
+            serializer << res;
+            return;
+        }
+
+        return_type_t<Return> rt {};
+
+        constexpr auto size = std::tuple_size<typename std::decay<Args>::type>::value;
+        auto invoke = [&func_stl, &args ]<std::size_t... Index>(std::index_sequence<Index...>) {
+            return func_stl(std::get<Index>(std::forward<Args>(args))...);
+        };
+
+        if constexpr (std::is_same_v<Return, void>) {
+            invoke(std::make_index_sequence<size> {});
+        }
+        else {
+            rt = invoke(std::make_index_sequence<size> {});
+        }
+
+        Result<Return> val;
+        val.set_code(RPC_SUCCESS);
+        val.set_value(rt);
+        serializer << val;
+    }
 
     /**
      * @brief 更新心跳定时器
