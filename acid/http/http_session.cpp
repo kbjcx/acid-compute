@@ -11,7 +11,7 @@ HttpSession::HttpSession(Socket::ptr socket, bool owner) : SocketStream(socket, 
 }
 
 HttpRequest::ptr HttpSession::recv_request() {
-    LOG_DEBUG(logger) << "recv request from fd = " << get_socket()->get_socket();
+    LOG_DEBUG(logger) << "recv request from fd = " << get_socket()->get_socketfd();
     HttpRequestParser::ptr parser(new HttpRequestParser);
     uint64_t buffer_size = HttpRequestParser::get_http_request_buffer_size();
     std::shared_ptr<char> buffer(new char[buffer_size], [](char* p) { delete[] p; });
@@ -22,7 +22,8 @@ HttpRequest::ptr HttpSession::recv_request() {
     do {
         size_t len = read(data + offset, buffer_size - offset);
         if (len == 0) {
-            LOG_DEBUG(logger) << "request len == 0 " << "socket is connected: " << get_socket()->is_connected();
+            LOG_DEBUG(logger) << "request len == 0 "
+                              << "socket is connected: " << get_socket()->is_connected();
             close();
             return nullptr;
         }

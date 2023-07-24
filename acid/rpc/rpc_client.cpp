@@ -43,6 +43,7 @@ void RpcClient::close() {
     m_is_close = true;
     m_channel.close();
     for (auto i : m_response_handle) {
+        // 用来告知Result<R> call(Serializer s)RPC关闭, 退出协程
         i.second << nullptr;
     }
 
@@ -51,7 +52,8 @@ void RpcClient::close() {
         m_heart_timer->cancel();
         m_heart_timer.reset();
     }
-    IOManager::get_this()->del_event(m_session->get_socket()->get_socket(), IOManager::Event::READ);
+    IOManager::get_this()->del_event(m_session->get_socket()->get_socketfd(),
+                                     IOManager::Event::READ);
     m_session->close();
 }
 
@@ -87,7 +89,8 @@ bool RpcClient::connect(Address::ptr address) {
                     Protocol::create(Protocol::MessageType::HEARTBEAT_PACKET, "");
                 // 向send协程发送Channel消息
                 m_channel << protocol;
-                m_is_heart_close = false;
+                // 若没收到回复, 则表明心跳包失效
+                m_is_heart_close = true;
             },
             true);
     }
@@ -160,7 +163,7 @@ void RpcClient::handle_method_response(Protocol::ptr response) {
 
     // 获取等待结果的channel
     Channel<Protocol::ptr> channel = it->second;
-    // 向channel发送调用结果
+    // 向channel发送调用结果, 唤醒Result<R> call(Serializer s)协程
     channel << response;
 }
 
@@ -172,6 +175,7 @@ void RpcClient::handle_publish(Protocol::ptr protocol) {
     auto it = m_sub_handle.find(key);
     if (it == m_sub_handle.end()) return;
 
+    // 由自定义的订阅消息处理函数处理回复
     it->second(s);
 }
 

@@ -74,16 +74,17 @@ public:
         Serializer s;
         s << key << data;
         s.reset();
-        Protocol::ptr sub =
+        Protocol::ptr pub =
             Protocol::create(Protocol::MessageType::RPC_PUBLISH_REQUEST, s.to_string(), 0);
         LockGuard lock(m_mutex);
+        //  向所有订阅此消息的connection发布消息
         auto range = m_subscribes.equal_range(key);
         for (auto it = range.first; it != range.second; ++it) {
             auto connection = it->second.lock();
             if (connection == nullptr || !connection->is_connected()) {
                 continue;
             }
-            connection->send_protocol(sub);
+            connection->send_protocol(pub);
         }
     }
 
@@ -161,7 +162,7 @@ private:
      *             ...
      */
     std::multimap<std::string, std::string> m_services;
-    // 维护服务地址到迭代器的映射
+    // 维护服务地址到m_services迭代器的映射
     std::map<std::string, std::vector<std::multimap<std::string, std::string>::iterator>> m_iters;
     MutexType m_mutex;
     // 允许心跳超时的时间

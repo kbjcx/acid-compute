@@ -59,7 +59,7 @@ void RpcConnectionPool::close() {
 
     m_discover_handle.clear();
 
-    IOManager::get_this()->del_event(m_registry->get_socket()->get_socket(),
+    IOManager::get_this()->del_event(m_registry->get_socket()->get_socketfd(),
                                      IOManager::Event::READ);
     if (m_registry->is_connected()) {
         m_registry->close();

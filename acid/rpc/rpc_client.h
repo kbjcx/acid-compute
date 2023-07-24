@@ -84,6 +84,13 @@ public:
         return call<R>(s);
     }
 
+    /**
+     * @brief 异步回调模式
+     *
+     * @tparam Params
+     * @param name 函数名
+     * @param params 可变参
+     */
     template <class... Params>
     void callback(const std::string& name, Params&&... params) {
         // 参数里携带回调函数
@@ -114,6 +121,15 @@ public:
             });
     }
 
+    /**
+     * @brief 异步调用模式
+     *
+     * @tparam R
+     * @tparam Params
+     * @param name
+     * @param params
+     * @return Channel<Result<R>> 将结果存放到channel, 存放进去后, 就能够读取, 否则会阻塞在channel
+     */
     template <class R, class... Params>
     Channel<Result<R>> async_call(const std::string& name, Params&&... params) {
         // channel的队列大小为1
@@ -133,20 +149,24 @@ public:
      *
      * @tparam Func 回调函数类型
      * @param key 订阅的key
-     * @param func 回调函数9
+     * @param func 回调函数
      */
     template <class Func>
     void subscribe(const std::string& key, Func func) {
         {
+            // 注册订阅消息的处理函数
             LockGuard lock(m_sub_mutex);
             auto it = m_sub_handle.find(key);
             if (it != m_sub_handle.end()) {
+                // 已经存在该订阅, 则返回
                 assert(false);
                 return;
             }
 
             m_sub_handle.emplace(key, std::move(func));
         }
+
+        // 向服务端订阅该key消息, 发送订阅请求的消息
         Serializer s;
         s << key;
         s.reset();
@@ -189,21 +209,21 @@ private:
         {
             LockGuard lock(m_mutex);
             id = m_sequence_id;
-            // 将请求序列号与接收的channel相关联
+            // 将请求序列号与接收的channel相关联, 用来获取结果
             it = m_response_handle.emplace(m_sequence_id, channel).first;
             ++m_sequence_id;
         }
 
-        // 创建请求协议, 附带上请求ID
+        // 创建请求协议, 附带上请求ID, 请求调用
         Protocol::ptr request =
-            Protocol::create(Protocol::MessageType::RPC_SUBSCRIBE_REQUEST, s.to_string(), id);
+            Protocol::create(Protocol::MessageType::RPC_METHOD_REQUEST, s.to_string(), id);
         // 向send协程的channel发送消息
         m_channel << request;
 
         Timer::ptr timer;
         bool timeout = false;
         if (m_timeout != static_cast<uint64_t>(-1)) {
-            // 如果调用超时则关闭channel
+            // 如果超时还没有获取到response则关闭channel
             timer = IOManager::get_this()->add_timer(m_timeout, [channel, &timeout]() mutable {
                 timeout = true;
                 channel.close();
@@ -242,7 +262,6 @@ private:
             return ret;
         }
 
-        // TODO 直接利用Result类拷贝
         Serializer serializer(response->get_content());
         try {
             serializer >> ret;
