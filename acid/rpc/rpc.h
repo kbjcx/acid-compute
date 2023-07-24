@@ -14,6 +14,7 @@
 
 #include "serializer.h"
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -26,7 +27,7 @@ namespace acid::rpc {
 // 连接池向注册中心订阅的前缀
 inline const char* RPC_SERVICE_SUBSCRIBE = "[[rpc service subscribe]]";
 
-// 结果返回类型
+// 结果返回类型, 为了特化void返回类型
 template <class T>
 struct return_type {
     using type = T;
@@ -43,10 +44,10 @@ template <class T>
 using return_type_t = typename return_type<T>::type;
 
 // Rpc调用状态
-enum RpcState {
+enum RpcState : uint16_t {
     RPC_SUCCESS = 0,  // 成功
     RPC_FAIL,         // 失败
-    RPC_NO_MATCH,     // 函数不匹配
+    RPC_NO_MATCH,     // 函数不匹配(找到了函数, 但是参数不匹配)
     RPC_NO_METHOD,    // 没有找到调用函数
     RPC_CLOSED,       // RCP连接关闭
     RPC_TIMEOUT       // RPC调用超时
@@ -86,7 +87,7 @@ public:
     Result() = default;
 
     bool valid() {
-        return m_code == 0;
+        return m_code == RPC_SUCCESS;
     }
 
     type& get_value() {
