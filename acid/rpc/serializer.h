@@ -21,7 +21,7 @@
 #include <map>
 #include <set>
 #include <sstream>
-#include <string.h>
+#include <cstring>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -50,10 +50,10 @@ public:
     Serializer() : m_byte_array(std::make_shared<ByteArray>()) {
     }
 
-    Serializer(ByteArray::ptr byte_array) : m_byte_array(byte_array) {
+    explicit Serializer(ByteArray::ptr byte_array) : m_byte_array(byte_array) {
     }
 
-    Serializer(const std::string& in) : m_byte_array(std::make_shared<ByteArray>()) {
+    explicit Serializer(const std::string& in) : m_byte_array(std::make_shared<ByteArray>()) {
         write_raw_data(in.c_str(), in.size());
         reset();
     }

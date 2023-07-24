@@ -37,7 +37,7 @@ public:
     using MutexType = CoMutex;
     using LockGuard = MutexType::Lock;
 
-    RpcClient(bool auto_heartbeat = true);
+    explicit RpcClient(bool auto_heartbeat = true);
 
     ~RpcClient();
 
