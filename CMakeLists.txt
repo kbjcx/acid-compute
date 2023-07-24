@@ -69,6 +69,7 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/acid/http SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/net SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/common SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/logger SRC_LIST)
+aux_source_directory(${PROJECT_SOURCE_DIR}/acid/rpc SRC_LIST)
 set(SRC_LIST ${SRC_LIST} ${PROJECT_SOURCE_DIR}/third_party/parser/http_parser.c)
 
 #编译的库生成在lib
