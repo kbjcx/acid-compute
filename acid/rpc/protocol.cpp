@@ -8,6 +8,7 @@ Protocol::ptr Protocol::create(MessageType type, const std::string& content, uin
     Protocol::ptr protocol = std::make_shared<Protocol>();
     protocol->set_message_type(type);
     protocol->set_content(content);
+    protocol->set_content_length(content.size());
     protocol->set_sequence_id(id);
     return protocol;
 }

@@ -505,7 +505,7 @@ std::string ByteArray::to_string() {
     if (result.empty()) {
         return result;
     }
-    read(&result[0], result.size(), m_position);
+    read(result.data(), result.size(), m_position);
     return result;
 }
 

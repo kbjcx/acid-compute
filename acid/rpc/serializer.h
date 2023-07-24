@@ -143,16 +143,16 @@ public:
             t = m_byte_array->read_fix_uint16();
         }
         else if constexpr (std::is_same_v<T, int32_t>) {
-            t = m_byte_array->read_fix_int32();
+            t = m_byte_array->read_var_int32();
         }
         else if constexpr (std::is_same_v<T, uint32_t>) {
-            t = m_byte_array->read_fix_uint32();
+            t = m_byte_array->read_var_uint32();
         }
         else if constexpr (std::is_same_v<T, int64_t>) {
-            t = m_byte_array->read_fix_int64();
+            t = m_byte_array->read_var_int64();
         }
         else if constexpr (std::is_same_v<T, uint64_t>) {
-            t = m_byte_array->read_fix_uint64();
+            t = m_byte_array->read_var_uint64();
         }
         else if constexpr (std::is_same_v<T, std::string>) {
             t = m_byte_array->read_string_vint();
@@ -184,16 +184,16 @@ public:
             m_byte_array->write_fix_uint16(t);
         }
         else if constexpr (std::is_same_v<T, int32_t>) {
-            m_byte_array->write_fix_int32(t);
+            m_byte_array->write_var_int32(t);
         }
         else if constexpr (std::is_same_v<T, uint32_t>) {
-            m_byte_array->write_fix_uint32(t);
+            m_byte_array->write_var_uint32(t);
         }
         else if constexpr (std::is_same_v<T, int64_t>) {
-            m_byte_array->write_fix_int64(t);
+            m_byte_array->write_var_int64(t);
         }
         else if constexpr (std::is_same_v<T, uint64_t>) {
-            m_byte_array->write_fix_uint64(t);
+            m_byte_array->write_var_uint64(t);
         }
         else if constexpr (std::is_same_v<T, std::string>) {
             m_byte_array->write_string_vint(t);
@@ -240,6 +240,13 @@ public:
         return *this;
     }
 
+    /**
+     * @brief 读取链表结构, 先读取长度, 在依次读取链表里的值, 支持基本数据类型以及stl容器的嵌套
+     *
+     * @tparam T
+     * @param t
+     * @return Serializer&
+     */
     template <class T>
     Serializer& operator>>(std::list<T>& t) {
         size_t size;
@@ -377,6 +384,14 @@ public:
         *this << t.first << t.second;
     }
 
+    /**
+     * @brief map需要先读取pair结构
+     *
+     * @tparam K
+     * @tparam V
+     * @param t
+     * @return Serializer&
+     */
     template <class K, class V>
     Serializer& operator>>(std::map<K, V>& t) {
         size_t size;

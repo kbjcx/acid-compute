@@ -67,6 +67,11 @@ public:
 
     static Protocol::ptr create(MessageType type, const std::string& content, uint32_t id = 0);
 
+    /**
+     * @brief 创建一个type为HEARTBEAT_PACKET, content为空字符串的消息
+     *
+     * @return Protocol::ptr
+     */
     static Protocol::ptr heartbeat();
 
     uint8_t get_magic() const {
@@ -117,8 +122,19 @@ public:
         m_content = content;
     }
 
+    /**
+     * @brief 序列化元数据, 即不包含content的部分
+     *
+     * @return ByteArray::ptr
+     */
     ByteArray::ptr encode_meta();
 
+    /**
+     * @brief 序列化消息, 因为序列化时字符串是以 [长度 + 文本]的格式序列化的,
+     * 因此无序显示序列化文本长度
+     *
+     * @return ByteArray::ptr
+     */
     ByteArray::ptr encode();
 
     void decode_meta(ByteArray::ptr byte_array);

@@ -13,12 +13,17 @@
 #define ACID_ROUTE_STRATEGY_H
 
 #include "acid/common/mutex.h"
+#include "acid/net/address.h"
 
 #include <memory>
 #include <vector>
 
 namespace acid::rpc {
 
+/**
+ * @brief 路由策略
+ * 
+ */
 enum class Strategy {
     RANDOM,   // 随机算法
     POLLING,  // 轮询算法
@@ -37,19 +42,31 @@ public:
 
 namespace impl {
 
+    /**
+     * @brief 随机路由策略
+     * 
+     * @tparam T 
+     */
     template <class T>
     class RandomRouteStragetyImpl : public RouteStrategy<T> {
     public:
         T& select(std::vector<T>& list) override {
+            // 利用当前时间设置随机数种子, 确保随机性
             srand(static_cast<unsigned int>(time(NULL)));
             return list[rand() % list.size()];
         }
     };
 
+    /**
+     * @brief 轮询路由策略
+     * 
+     * @tparam T 
+     */
     template <class T>
     class PollingRouteStrategyImpl : public RouteStrategy<T> {
     public:
         T& select(std::vector<T>& list) {
+            // 存在修改index的冲突, 因此需要加锁
             Mutex::Lock lock(m_mutex);
             if (m_index >= static_cast<int>(list.size())) {
                 m_index = 0;
@@ -67,6 +84,7 @@ namespace impl {
     public:
         T& select(std::vector<T>& list) {
             // TODO hash ip 路由选择算法
+            
             return list.at(0);
         }
     };
