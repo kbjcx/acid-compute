@@ -36,7 +36,7 @@ public:
      * @param address rpc服务中心地址
      * @return true
      * @return false
-     */
+     */ 
     bool connect(Address::ptr address);
 
     /**
