@@ -51,10 +51,18 @@ public:
 
     ~RpcServer();
 
+    // 创建socket, 绑定地址
     bool bind(Address::ptr addr, bool ssl = false) override;
 
+    // 创建socket, 连接服务中心
     bool bind_registry(Address::ptr address);
 
+    /**
+     * @brief 开启RpcServer, 并初始化各种服务
+     *
+     * @return true
+     * @return false
+     */
     bool start() override;
 
     /**
@@ -66,8 +74,7 @@ public:
      */
     template <class Func>
     void register_method(const std::string& name, Func func) {
-        // 注册进行函数调用时的执行函数
-        // 通过proxy函数来进行实际的函数调用， 并将结果通过Serialiazer返回
+        // 注册调用的函数, 通过Serializer返回调用结果
         m_handlers[name] = [func, this](Serializer::ptr s, const std::string& arg) {
             proxy(func, s, arg);
         };
@@ -76,7 +83,7 @@ public:
     void set_name(std::string& name) override;
 
     /**
-     * @brief 发布消息
+     * @brief 发布消息, 当服务中心断开时, 由服务器直接提供服务时, 在服务变更时需要发布
      *
      * @tparam T
      * @param name 发布的消息名
@@ -123,7 +130,7 @@ protected:
      * @param arg 参数
      * @return Serializer 调用结果的序列化
      */
-    Serializer call(const std::string& name, const std::string& arg);
+    Serializer::ptr call(const std::string& name, const std::string& arg);
 
     /**
      * @brief 调用代理
@@ -220,7 +227,7 @@ protected:
 
 private:
     // 保存服务端注册的函数
-    std::map<std::string, std::function<void(Serializer, const std::string&)>> m_handlers;
+    std::map<std::string, std::function<void(Serializer::ptr, const std::string&)>> m_handlers;
     // 服务中心连接
     RpcSession::ptr m_registry;
     // 心跳定时器
@@ -230,7 +237,7 @@ private:
     // 心跳时间
     uint64_t m_alive_time;
     // 订阅的客户端
-    std::unordered_map<std::string, std::weak_ptr<RpcSession>> m_subscribes;
+    std::unordered_multimap<std::string, std::weak_ptr<RpcSession>> m_subscribes;
     MutexType m_sub_mutex;
     // 停止清理订阅的协程
     bool m_stop_clean = false;

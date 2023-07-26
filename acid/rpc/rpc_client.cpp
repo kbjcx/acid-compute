@@ -2,6 +2,9 @@
 
 #include "acid/common/config.h"
 
+#include <cstddef>
+#include <cstdint>
+
 static auto logger = GET_LOGGER_BY_NAME("sysytem");
 
 namespace acid::rpc {
@@ -11,6 +14,10 @@ static ConfigVar<size_t>::ptr g_channel_capacity =
 
 static uint64_t s_channel_capacity = 1;
 
+// static ConfigVar<size_t>::ptr g_sequence_id_upper_bound = Config::look_up<size_t>(
+//     "rpc.client.sequence_id_upper_bound", 1024, "rpc client sequence id upper bound");
+
+// static uint32_t s_sequence_id_upper_bound = 0;
 // 初始化操作, 当需要在main函数之间执行时可以这么写
 struct _RpcClientIniter {
     _RpcClientIniter() {
@@ -20,13 +27,23 @@ struct _RpcClientIniter {
                              << new_val;
             s_channel_capacity = new_val;
         });
+
+        // s_sequence_id_upper_bound = g_sequence_id_upper_bound->get_value();
+        // g_sequence_id_upper_bound->add_listener([](const size_t& old_val, const size_t& new_val)
+        // {
+        //     LOG_INFO(logger) << "rpc client sequence id upper bound change from " << old_val
+        //                      << " to " << new_val;
+        //     s_sequence_id_upper_bound = new_val;
+        // });
     }
 };
 
 static _RpcClientIniter s_rpc_client_initer;
 
 RpcClient::RpcClient(bool auto_heartbeat)
-    : m_auto_heartbeat(auto_heartbeat), m_channel(s_channel_capacity) {
+    : m_auto_heartbeat(auto_heartbeat)
+    // , m_sequence_id_upper_bound(s_sequence_id_upper_bound)
+    , m_channel(s_channel_capacity) {
 }
 
 RpcClient::~RpcClient() {
@@ -71,6 +88,7 @@ bool RpcClient::connect(Address::ptr address) {
     m_is_heart_close = false;
     m_is_close = false;
     m_session = std::make_shared<RpcSession>(sock);
+    // 一个rpc连接会接受多个调用请求, 通过channel来区分不同的调用请求
     m_channel = Channel<Protocol::ptr>(s_channel_capacity);
     IOManager::get_this()->schedule([this]() { handle_recv(); });
     IOManager::get_this()->schedule([this]() { handle_send(); });
@@ -167,6 +185,7 @@ void RpcClient::handle_method_response(Protocol::ptr response) {
     channel << response;
 }
 
+// 通过客户端直连服务端或者注册中心才会有publish
 void RpcClient::handle_publish(Protocol::ptr protocol) {
     Serializer s(protocol->get_content());
     std::string key;

@@ -179,6 +179,12 @@ void RpcConnectionPool::handle_service_discover(Protocol::ptr response) {
     channel << response;
 }
 
+/**
+ * @brief 进行服务发现时自动订阅
+ *
+ * @param name
+ * @return std::vector<std::string> 返回
+ */
 auto RpcConnectionPool::discover(const std::string& name) -> std::vector<std::string> {
     if (!m_registry || !m_registry->is_connected()) {
         return {};
@@ -197,7 +203,8 @@ auto RpcConnectionPool::discover(const std::string& name) -> std::vector<std::st
     // 创建请求协议, 付带请求ID
     Protocol::ptr request = Protocol::create(Protocol::MessageType::RPC_SERVICE_DISCOVER, name);
 
-    // 向send协程发送消息
+    // 向send协程发送消息, 发往服务注册中心, 由其他协程向send协程发送消息,
+    // 由recv协程接收回复的消息并处理, 在分发到对应的协程
     m_channel << request;
 
     Protocol::ptr response = nullptr;
@@ -263,6 +270,11 @@ auto RpcConnectionPool::discover(const std::string& name) -> std::vector<std::st
     return ret;
 }
 
+/**
+ * @brief 利用存储的订阅处理回调函数处理发布的消息, 处理上线和下线的问题
+ *
+ * @param protocol
+ */
 void RpcConnectionPool::handle_publish(Protocol::ptr protocol) {
     Serializer s(protocol->get_content());
     std::string key;

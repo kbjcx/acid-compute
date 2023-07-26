@@ -49,7 +49,9 @@ RpcServer::~RpcServer() {
 }
 
 bool RpcServer::bind(Address::ptr addr, bool ssl) {
+    // 获取绑定的端口号
     m_port = std::dynamic_pointer_cast<IPv4Address>(addr)->get_port();
+    // 创建socket并绑定地址
     return TcpServer::bind(addr);
 }
 
@@ -79,14 +81,17 @@ bool RpcServer::bind_registry(Address::ptr address) {
 }
 
 bool RpcServer::start() {
+    // 如果连接上了注册中心, 则向其注册调用服务
     if (m_registry) {
         for (auto& item : m_handlers) {
             register_service(item.first);
         }
 
+        // 虚函数, 需要动态转换为RpcServer
         auto self = std::dynamic_pointer_cast<RpcServer>(shared_from_this());
         // 服务中心心跳定时器
         m_registry->get_socket()->set_recv_timeout(30'000);
+        // 服务器定时发送心跳包
         m_heart_timer = m_worker->add_timer(
             30'000,
             [self]() {
@@ -94,8 +99,10 @@ bool RpcServer::start() {
                 Protocol::ptr proto =
                     Protocol::create(Protocol::MessageType::HEARTBEAT_PACKET, "", 0);
                 self->m_registry->send_protocol(proto);
+                // 收取心跳响应包
                 Protocol::ptr response = self->m_registry->recv_protocol();
 
+                // 没有响应则服务中心关闭, 取消心跳定时器
                 if (!response) {
                     LOG_WARN(logger) << "Registry closed";
                     // 放弃服务中心, 独自提供服务
@@ -130,7 +137,7 @@ bool RpcServer::start() {
             m_clean_channel << true;
         },
         true);
-
+    // 为socket开始accept
     return TcpServer::start();
 }
 
@@ -193,19 +200,19 @@ void RpcServer::update(Timer::ptr heart_timer, Socket::ptr client) {
             true);
         return;
     }
-    m_heart_timer->reset(m_alive_time, true);
+    heart_timer->reset(m_alive_time, true);
 }
 
-Serializer RpcServer::call(const std::string& name, const std::string& arg) {
-    Serializer serializer;
+Serializer::ptr RpcServer::call(const std::string& name, const std::string& arg) {
+    Serializer::ptr serializer = std::make_shared<Serializer>();
     auto it = m_handlers.find(name);
     if (it == m_handlers.end()) {
         return serializer;
     }
 
     auto func = it->second;
-    func(&serializer, arg);
-    serializer.reset();
+    func(serializer, arg);
+    serializer->reset();
     return serializer;
 }
 
@@ -213,16 +220,18 @@ Protocol::ptr RpcServer::handle_method_call(Protocol::ptr proto) {
     std::string func_name;
     Serializer request(proto->get_content());
     request >> func_name;
-    Serializer ret = call(func_name, request.to_string());
+    Serializer::ptr ret = call(func_name, request.to_string());
     Protocol::ptr response = Protocol::create(Protocol::MessageType::RPC_METHOD_RESPONSE,
-                                              ret.to_string(), proto->get_sequence_id());
+                                              ret->to_string(), proto->get_sequence_id());
     return response;
 }
 
 void RpcServer::register_service(const std::string& name) {
     Protocol::ptr proto = Protocol::create(Protocol::MessageType::RPC_SERVICE_REGISTER, name, 0);
+    // 向服务中心发送服务注册消息, 消息体携带注册的函数名
     m_registry->send_protocol(proto);
 
+    // 接收服务中心的回复
     Protocol::ptr response = m_registry->recv_protocol();
     if (!response) {
         LOG_WARN(logger) << "register service: " << name
@@ -230,6 +239,7 @@ void RpcServer::register_service(const std::string& name) {
         return;
     }
 
+    // 查看服务中心的回复
     Result<std::string> res;
     Serializer s(response->get_content());
     s >> res;
@@ -247,9 +257,12 @@ Protocol::ptr RpcServer::handle_heartbeat_packet(Protocol::ptr proto) {
 Protocol::ptr RpcServer::handle_subscribe(Protocol::ptr proto, RpcSession::ptr client) {
     LockGuard lock(m_sub_mutex);
     std::string key;
+    // 从消息体中读取订阅的key
     Serializer s(proto->get_content());
     s >> key;
+    // 将客户端连接加入订阅列表
     m_subscribes.emplace(key, std::weak_ptr<RpcSession>(client));
+    // 回复一个SUCCESS报文
     Result<> res = Result<>::success();
     s.reset();
     s << res;
