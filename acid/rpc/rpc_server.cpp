@@ -204,7 +204,7 @@ Serializer RpcServer::call(const std::string& name, const std::string& arg) {
     }
 
     auto func = it->second;
-    func(serializer, arg);
+    func(&serializer, arg);
     serializer.reset();
     return serializer;
 }
