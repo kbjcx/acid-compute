@@ -71,6 +71,10 @@ RpcServiceRegistry::RpcServiceRegistry(IOManager* worker, IOManager* io_worker,
         true);
 }
 
+/**
+ * @brief 需要停止定时器
+ * 
+ */
 RpcServiceRegistry::~RpcServiceRegistry() {
     {
         LockGuard lock(m_sub_mutex);
@@ -128,6 +132,7 @@ void RpcServiceRegistry::handle_client(Socket::ptr client) {
             case Protocol::MessageType::RPC_PROVIDER:
                 LOG_DEBUG(logger) << client->to_string();
                 provider_address = hanlde_provider(request, client);
+                // 到default打印请求
                 continue;
             case Protocol::MessageType::RPC_SERVICE_REGISTER:
                 response = handle_register_service(request, provider_address);
@@ -167,6 +172,7 @@ Protocol::ptr RpcServiceRegistry::handle_heartbeat_packet(Protocol::ptr protocol
  * @return Address::ptr
  */
 Address::ptr RpcServiceRegistry::hanlde_provider(Protocol::ptr protocol, Socket::ptr sock) {
+    // 无法获取远程端口, 因此需要通过报文传输服务开放的端口
     uint32_t port = 0;
     Serializer s(protocol->get_content());
     s.reset();

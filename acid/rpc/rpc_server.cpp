@@ -200,36 +200,38 @@ void RpcServer::update(Timer::ptr heart_timer, Socket::ptr client) {
             true);
         return;
     }
-    m_heart_timer->reset(m_alive_time, true);
+    heart_timer->reset(m_alive_time, true);
 }
 
-Serializer RpcServer::call(const std::string& name, const std::string& arg) {
+Serializer::ptr RpcServer::call(const std::string& name, const std::string& arg) {
     Serializer::ptr serializer = std::make_shared<Serializer>();
     auto it = m_handlers.find(name);
     if (it == m_handlers.end()) {
-        return *serializer;
+        return serializer;
     }
 
     auto func = it->second;
     func(serializer, arg);
     serializer->reset();
-    return *serializer;
+    return serializer;
 }
 
 Protocol::ptr RpcServer::handle_method_call(Protocol::ptr proto) {
     std::string func_name;
     Serializer request(proto->get_content());
     request >> func_name;
-    Serializer ret = call(func_name, request.to_string());
+    Serializer::ptr ret = call(func_name, request.to_string());
     Protocol::ptr response = Protocol::create(Protocol::MessageType::RPC_METHOD_RESPONSE,
-                                              ret.to_string(), proto->get_sequence_id());
+                                              ret->to_string(), proto->get_sequence_id());
     return response;
 }
 
 void RpcServer::register_service(const std::string& name) {
     Protocol::ptr proto = Protocol::create(Protocol::MessageType::RPC_SERVICE_REGISTER, name, 0);
+    // 向服务中心发送服务注册消息, 消息体携带注册的函数名
     m_registry->send_protocol(proto);
 
+    // 接收服务中心的回复
     Protocol::ptr response = m_registry->recv_protocol();
     if (!response) {
         LOG_WARN(logger) << "register service: " << name
@@ -237,6 +239,7 @@ void RpcServer::register_service(const std::string& name) {
         return;
     }
 
+    // 查看服务中心的回复
     Result<std::string> res;
     Serializer s(response->get_content());
     s >> res;
@@ -254,9 +257,12 @@ Protocol::ptr RpcServer::handle_heartbeat_packet(Protocol::ptr proto) {
 Protocol::ptr RpcServer::handle_subscribe(Protocol::ptr proto, RpcSession::ptr client) {
     LockGuard lock(m_sub_mutex);
     std::string key;
+    // 从消息体中读取订阅的key
     Serializer s(proto->get_content());
     s >> key;
+    // 将客户端连接加入订阅列表
     m_subscribes.emplace(key, std::weak_ptr<RpcSession>(client));
+    // 回复一个SUCCESS报文
     Result<> res = Result<>::success();
     s.reset();
     s << res;

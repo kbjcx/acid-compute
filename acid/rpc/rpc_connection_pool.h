@@ -36,7 +36,7 @@ public:
      * @param address rpc服务中心地址
      * @return true
      * @return false
-     */ 
+     */
     bool connect(Address::ptr address);
 
     /**
@@ -103,9 +103,12 @@ public:
         // 从连接池中取出服务连接
         auto connection = m_connections.find(name);
         Result<R> result;
+        // 如果连接池中存在已有连接, 则直接调用
         if (connection != m_connections.end()) {
             lock.unlock();
             result = connection->second->template call<R>(name, params...);
+            // 调用成功则返回结果, 对端关闭则移除该地址,
+            // 重新从保存的服务地址列表中通过路由策略选择服务地址
             if (result.get_code() != RPC_CLOSED) {
                 return result;
             }
@@ -117,6 +120,7 @@ public:
             m_connections.erase(name);
         }
 
+        // 移除地址后, 地址列表可能是空的
         std::vector<std::string>& addrs = m_service_cache[name];
         // 如果服务地址缓存为空则重新向服务中心请求服务发现
         if (addrs.empty()) {
@@ -134,10 +138,10 @@ public:
             }
         }
 
-        // 选择客户端负载均衡策略，根据路由策略选择服务地址
+        // 若地址列表不为空,则选择客户端负载均衡策略，根据路由策略选择服务地址
         RouteStrategy<std::string>::ptr strategy =
             RouteEngine<std::string>::query_strategy(Strategy::RANDOM);
-        if (addrs.size()) {
+        if (!addrs.empty()) {
             const std::string ip = strategy->select(addrs);
             Address::ptr address = Address::look_up_any(ip);
             // 选择的服务地址有效
@@ -152,6 +156,7 @@ public:
             }
         }
 
+        // 服务发现之后发现地址仍然为空, 怎调用错误
         result.set_code(RPC_FAIL);
         result.set_message("call fail");
         return result;
@@ -162,7 +167,7 @@ public:
      *
      * @tparam Func
      * @param key 订阅的key
-     * @param func 回调函数
+     * @param func 回调函数, 处理服务上线和下线的操作
      */
     template <class Func>
     void subscribe(const std::string& key, Func func) {

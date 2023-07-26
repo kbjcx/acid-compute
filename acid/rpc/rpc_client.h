@@ -170,9 +170,9 @@ public:
         Serializer s;
         s << key;
         s.reset();
-        Protocol::ptr response =
+        Protocol::ptr request =
             Protocol::create(Protocol::MessageType::RPC_SUBSCRIBE_REQUEST, s.to_string(), 0);
-        m_channel << response;
+        m_channel << request;
     }
 
     Socket::ptr get_socket() {
@@ -195,6 +195,7 @@ private:
     template <class R>
     Result<R> call(Serializer s) {
         Result<R> ret;
+        // 连接关闭直接返回RPC_CLOSED
         if (is_close()) {
             ret.set_code(RPC_CLOSED);
             ret.set_message("socket closed");
@@ -205,6 +206,7 @@ private:
         Channel<Protocol::ptr> channel(1);
         // 本次调用的序列号
         uint32_t id = 0;
+        // 将调用的channel插入到映射, 根据序列号区分不同的调用协程
         std::map<uint32_t, Channel<Protocol::ptr>>::iterator it;
         {
             LockGuard lock(m_mutex);
@@ -224,18 +226,23 @@ private:
         bool timeout = false;
         if (m_timeout != static_cast<uint64_t>(-1)) {
             // 如果超时还没有获取到response则关闭channel
-            timer = IOManager::get_this()->add_timer(m_timeout, [channel, &timeout]() mutable {
-                timeout = true;
-                channel.close();
-            });
+            timer = IOManager::get_this()->add_timer(
+                m_timeout,
+                [channel, &timeout]() mutable {
+                    timeout = true;
+                    channel.close();
+                },
+                false);
         }
 
         Protocol::ptr response;
         // 等待 response，Channel内部会挂起协程，如果有消息到达或者被关闭则会被唤醒
         channel >> response;
+        // 收到回复取消定时器
         if (timer) {
             timer->cancel();
         }
+        // 清除该channel的映射
         {
             LockGuard lock(m_mutex);
             if (!m_is_close) {
@@ -267,6 +274,7 @@ private:
             serializer >> ret;
         }
         catch (...) {
+            // 返回的结果类型不匹配
             ret.set_code(RPC_NO_MATCH);
             ret.set_message("return value not match");
         }

@@ -71,6 +71,7 @@ bool RpcClient::connect(Address::ptr address) {
     m_is_heart_close = false;
     m_is_close = false;
     m_session = std::make_shared<RpcSession>(sock);
+    // 一个rpc连接会接受多个调用请求, 通过channel来区分不同的调用请求
     m_channel = Channel<Protocol::ptr>(s_channel_capacity);
     IOManager::get_this()->schedule([this]() { handle_recv(); });
     IOManager::get_this()->schedule([this]() { handle_send(); });
@@ -167,6 +168,7 @@ void RpcClient::handle_method_response(Protocol::ptr response) {
     channel << response;
 }
 
+// 通过客户端直连服务端或者注册中心才会有publish
 void RpcClient::handle_publish(Protocol::ptr protocol) {
     Serializer s(protocol->get_content());
     std::string key;
