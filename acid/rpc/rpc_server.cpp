@@ -49,7 +49,9 @@ RpcServer::~RpcServer() {
 }
 
 bool RpcServer::bind(Address::ptr addr, bool ssl) {
+    // 获取绑定的端口号
     m_port = std::dynamic_pointer_cast<IPv4Address>(addr)->get_port();
+    // 创建socket并绑定地址
     return TcpServer::bind(addr);
 }
 
@@ -79,14 +81,17 @@ bool RpcServer::bind_registry(Address::ptr address) {
 }
 
 bool RpcServer::start() {
+    // 如果连接上了注册中心, 则向其注册调用服务
     if (m_registry) {
         for (auto& item : m_handlers) {
             register_service(item.first);
         }
 
+        // 虚函数, 需要动态转换为RpcServer
         auto self = std::dynamic_pointer_cast<RpcServer>(shared_from_this());
         // 服务中心心跳定时器
         m_registry->get_socket()->set_recv_timeout(30'000);
+        // 服务器定时发送心跳包
         m_heart_timer = m_worker->add_timer(
             30'000,
             [self]() {
@@ -94,8 +99,10 @@ bool RpcServer::start() {
                 Protocol::ptr proto =
                     Protocol::create(Protocol::MessageType::HEARTBEAT_PACKET, "", 0);
                 self->m_registry->send_protocol(proto);
+                // 收取心跳响应包
                 Protocol::ptr response = self->m_registry->recv_protocol();
 
+                // 没有响应则服务中心关闭, 取消心跳定时器
                 if (!response) {
                     LOG_WARN(logger) << "Registry closed";
                     // 放弃服务中心, 独自提供服务
@@ -130,7 +137,7 @@ bool RpcServer::start() {
             m_clean_channel << true;
         },
         true);
-
+    // 为socket开始accept
     return TcpServer::start();
 }
 
@@ -197,16 +204,16 @@ void RpcServer::update(Timer::ptr heart_timer, Socket::ptr client) {
 }
 
 Serializer RpcServer::call(const std::string& name, const std::string& arg) {
-    Serializer serializer;
+    Serializer::ptr serializer = std::make_shared<Serializer>();
     auto it = m_handlers.find(name);
     if (it == m_handlers.end()) {
-        return serializer;
+        return *serializer;
     }
 
     auto func = it->second;
     func(serializer, arg);
-    serializer.reset();
-    return serializer;
+    serializer->reset();
+    return *serializer;
 }
 
 Protocol::ptr RpcServer::handle_method_call(Protocol::ptr proto) {

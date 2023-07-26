@@ -51,10 +51,18 @@ public:
 
     ~RpcServer();
 
+    // 创建socket, 绑定地址
     bool bind(Address::ptr addr, bool ssl = false) override;
 
+    // 创建socket, 连接服务中心
     bool bind_registry(Address::ptr address);
 
+    /**
+     * @brief 开启RpcServer, 并初始化各种服务
+     *
+     * @return true
+     * @return false
+     */
     bool start() override;
 
     /**
@@ -66,7 +74,7 @@ public:
      */
     template <class Func>
     void register_method(const std::string& name, Func func) {
-        m_handlers[name] = [func, this](Serializer s, const std::string& arg) {
+        m_handlers[name] = [func, this](Serializer::ptr s, const std::string& arg) {
             proxy(func, s, arg);
         };
     }
@@ -131,7 +139,7 @@ protected:
      * @param arg
      */
     template <class Func>
-    void proxy(Func func, Serializer serializer, const std::string& arg) {
+    void proxy(Func func, Serializer::ptr serializer, const std::string& arg) {
         typename function_traits<Func>::stl_function_type func_stl(func);
         using Return = typename function_traits<Func>::return_type;
         using Args = typename function_traits<Func>::tuple_type;
@@ -211,7 +219,7 @@ protected:
 
 private:
     // 保存服务端注册的函数
-    std::map<std::string, std::function<void(Serializer, const std::string&)>> m_handlers;
+    std::map<std::string, std::function<void(Serializer::ptr, const std::string&)>> m_handlers;
     // 服务中心连接
     RpcSession::ptr m_registry;
     // 心跳定时器
