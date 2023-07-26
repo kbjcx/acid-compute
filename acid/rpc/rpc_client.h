@@ -25,6 +25,7 @@
 #include "rpc_session.h"
 
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <future>
 #include <memory>
@@ -210,10 +211,14 @@ private:
         std::map<uint32_t, Channel<Protocol::ptr>>::iterator it;
         {
             LockGuard lock(m_mutex);
+
             id = m_sequence_id;
             // 将请求序列号与接收的channel相关联, 用来获取结果
             it = m_response_handle.emplace(m_sequence_id, channel).first;
-            ++m_sequence_id;
+            // 序列号到头则重新开始循环
+            if (++m_sequence_id == UINT32_MAX) {
+                m_sequence_id = 0;
+            }
         }
 
         // 创建请求协议, 附带上请求ID, 请求调用
@@ -288,6 +293,7 @@ private:
     uint64_t m_timeout;          // 超时时间
     RpcSession::ptr m_session;   // 服务器的连接
     uint32_t m_sequence_id = 0;  // 序列号
+    // uint32_t m_sequence_id_upper_bound;  // 序列号的上线, 限制了一个client能够建立的连接数量
     // 序列号到对应调用者协程的Channel映射
     std::map<uint32_t, Channel<Protocol::ptr>> m_response_handle;
     MutexType m_mutex;                 // m_response_handle的mutex
