@@ -103,6 +103,7 @@ public:
         Serializer s;
         s << key << data;
         s.reset();
+        // 向所有订阅了该key的客户端发布该key进行更改的消息
         Protocol::ptr pub =
             Protocol::create(Protocol::MessageType::RPC_PUBLISH_REQUEST, s.to_string(), 0);
         LockGuard lock(m_sub_mutex);
@@ -143,30 +144,36 @@ protected:
      */
     template <class Func>
     void proxy(Func func, Serializer::ptr serializer, const std::string& arg) {
+        // 将传入的函数转换为std::function模式
         typename function_traits<Func>::stl_function_type func_stl(func);
+        // 萃取该函数的返回类型以及参数类型
         using Return = typename function_traits<Func>::return_type;
         using Args = typename function_traits<Func>::tuple_type;
 
         Serializer s(arg);
         Args args;
         try {
+            // 反序列化参数列表
             s >> args;
         }
         catch (...) {
+            // 出现异常说明反序列化类型不匹配，即传入的参数与调用的函数参数不匹配
             Result<Return> res;
             res.set_code(RPC_NO_MATCH);
             res.set_code("params not match");
-            serializer << res;
+            *serializer << res;
             return;
         }
 
         return_type_t<Return> rt {};
 
         constexpr auto size = std::tuple_size<typename std::decay<Args>::type>::value;
+        // 展开参数
         auto invoke = [&func_stl, &args ]<std::size_t... Index>(std::index_sequence<Index...>) {
             return func_stl(std::get<Index>(std::forward<Args>(args))...);
         };
 
+        // 有返回值和无返回值情况
         if constexpr (std::is_same_v<Return, void>) {
             invoke(std::make_index_sequence<size> {});
         }
@@ -177,7 +184,7 @@ protected:
         Result<Return> val;
         val.set_code(RPC_SUCCESS);
         val.set_value(rt);
-        serializer << val;
+        *serializer << val;
     }
 
     /**
