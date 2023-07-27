@@ -65,11 +65,11 @@ include_directories("${PROJECT_SOURCE_DIR}/third_party/parser")
 
 include_directories(${PROJECT_SOURCE_DIR})
 
+aux_source_directory(${PROJECT_SOURCE_DIR}/acid/rpc SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/http SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/net SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/common SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/logger SRC_LIST)
-aux_source_directory(${PROJECT_SOURCE_DIR}/acid/rpc SRC_LIST)
 set(SRC_LIST ${SRC_LIST} ${PROJECT_SOURCE_DIR}/third_party/parser/http_parser.c)
 
 #编译的库生成在lib
@@ -119,5 +119,7 @@ acid_add_test(/test/thread THREAD)
 acid_add_test(/test/http HTTP)
 
 acid_add_test(/test/logger LOGGER)
+
+acid_add_test(/test/rpc RPC)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
