@@ -10,10 +10,11 @@
     "editor.formatOnSave": true,
     "clangd.checkUpdates": false,
     "clangd.arguments": [
+        "--query-driver=/usr/bin/g++-11",
         "--log=verbose",
         "--pretty",
         "--all-scopes-completion",
-        "--completion-style=bundled",
+        "--completion-style=detailed",
         "--cross-file-rename",
         "--header-insertion-decorators",
         "--background-index",
@@ -24,7 +25,8 @@
         "--pch-storage=memory",
         "--function-arg-placeholders=false",
         "--compile-commands-dir=${workspaceFolder}/build",
-        "--completion-parse=auto"
+        "--completion-parse=auto",
+        "--header-insertion=never",
     ],
     "[cpp]": {
         "editor.autoIndent": "advanced",
@@ -58,7 +60,7 @@
     "vim.leader": "<space>",
     "vim.normalModeKeyBindings": [],
     "extensions.ignoreRecommendations": true,
-    "clangd.detectExtensionConflicts": true,
+    "clangd.detectExtensionConflicts": false,
     "C_Cpp.codeAnalysis.clangTidy.enabled": true,
     "better-comments.highlightPlainText": true,
     "better-comments.tags": [
@@ -107,6 +109,5 @@
             "bold": false,
             "italic": false
         }
-    ],
-    "clangd.path": "/usr/bin/clangd"
+    ]
 }

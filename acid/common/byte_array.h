@@ -217,7 +217,9 @@ public:
     uint64_t get_write_buffers(std::vector<iovec>& buffers, uint64_t len);
 
     // 返回数据的长度
-    size_t get_size() const;
+    size_t get_size() const {
+        return m_size;
+    }
 
 private:
     // 扩容使其能容纳size个数据

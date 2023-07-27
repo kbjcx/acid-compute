@@ -60,7 +60,7 @@ public:
      * @return Result<R> 返回值包装
      */
     template <class R, class... Params>
-    Result<R> call(const std::string& name, Params... params) {
+    auto call(const std::string& name, Params... params) -> Result<R> {
         // std::decay去除参数类型的const volatile 以及引用
         using args_type = std::tuple<typename std::decay<Params>::type...>;
         args_type args = std::make_tuple(params...);
@@ -78,7 +78,7 @@ public:
      * @return Result<R>
      */
     template <class R>
-    Result<R> call(const std::string& name) {
+    auto call(const std::string& name) -> Result<R> {
         Serializer s;
         s << name;
         s.reset();

@@ -14,7 +14,7 @@ option(ENABLE_DEBUGGER "enable debugger" ON)
 if (ENABLE_DEBUGGER)
     set(ENABLE_DEBUGGER 1)
     # 用于向编译器添加预定义的宏定义ACID_ENABLE_DEBUGGER替换为0
-    add_definitions(-DACID_ENABLE_DEBUGGER=0)
+    add_definitions(-DACID_ENABLE_DEBUGGER=1s)
     message ("  enable_debugger: yes")
 else ()
     set(ENABLE_DEBUGGER 0)
@@ -63,13 +63,16 @@ link_directories("${PROJECT_SOURCE_DIR}/third_party/yaml-cpp/build")
 
 include_directories("${PROJECT_SOURCE_DIR}/third_party/parser")
 
+include_directories("${PROJECT_SOURCE_DIR}/third_party/lua/include")
+link_directories("${PROJECT_SOURCE_DIR}/lib")
+
 include_directories(${PROJECT_SOURCE_DIR})
 
+aux_source_directory(${PROJECT_SOURCE_DIR}/acid/rpc SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/http SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/net SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/common SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/acid/logger SRC_LIST)
-aux_source_directory(${PROJECT_SOURCE_DIR}/acid/rpc SRC_LIST)
 set(SRC_LIST ${SRC_LIST} ${PROJECT_SOURCE_DIR}/third_party/parser/http_parser.c)
 
 #编译的库生成在lib
@@ -119,5 +122,7 @@ acid_add_test(/test/thread THREAD)
 acid_add_test(/test/http HTTP)
 
 acid_add_test(/test/logger LOGGER)
+
+acid_add_test(/test/rpc RPC)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)

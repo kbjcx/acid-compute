@@ -80,7 +80,9 @@ public:
         };
     }
 
-    void set_name(std::string& name) override;
+    void set_name(std::string& name) override {
+        TcpServer::set_name(name);
+    }
 
     /**
      * @brief 发布消息, 当服务中心断开时, 由服务器直接提供服务时, 在服务变更时需要发布
