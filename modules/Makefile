@@ -21,7 +21,7 @@ LIB_NAME := lua
 all: $(OBJ_DIR) dynamic
 
 dynamic: ${OBJ_FILES}
-	$(CXX) $(CXXFLAGS) -shared -o ${TARGET} $^ -L${LIBDIR} -l${LIB_NAME} -Wl,rpath="$&ORIGIN/../lib"
+	$(CXX) $(CXXFLAGS) -shared -o ${TARGET} $^ -L${LIBDIR} -l${LIB_NAME} -Wl,-rpath="../lib"
 
 # 生成目标文件
 $(OBJ_DIR)/%.o: %.cpp
