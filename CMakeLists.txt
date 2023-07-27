@@ -14,7 +14,7 @@ option(ENABLE_DEBUGGER "enable debugger" ON)
 if (ENABLE_DEBUGGER)
     set(ENABLE_DEBUGGER 1)
     # 用于向编译器添加预定义的宏定义ACID_ENABLE_DEBUGGER替换为0
-    add_definitions(-DACID_ENABLE_DEBUGGER=0)
+    add_definitions(-DACID_ENABLE_DEBUGGER=1s)
     message ("  enable_debugger: yes")
 else ()
     set(ENABLE_DEBUGGER 0)
@@ -62,6 +62,9 @@ include_directories("${PROJECT_SOURCE_DIR}/third_party/yaml-cpp/include")
 link_directories("${PROJECT_SOURCE_DIR}/third_party/yaml-cpp/build")
 
 include_directories("${PROJECT_SOURCE_DIR}/third_party/parser")
+
+include_directories("${PROJECT_SOURCE_DIR}/third_party/lua/include")
+link_directories("${PROJECT_SOURCE_DIR}/lib")
 
 include_directories(${PROJECT_SOURCE_DIR})
 
