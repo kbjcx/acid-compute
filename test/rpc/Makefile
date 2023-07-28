@@ -24,7 +24,7 @@ LIB_NAME := lua
 all: $(BIN_DIR) $(OBJ_DIR) exe clean
 
 exe: ${OBJ_FILES}
-	$(CXX) $(CXXFLAGS) -o ${TARGET} $^ -L${LIBDIR} -l${LIB_NAME} -ldl
+	$(CXX) $(CXXFLAGS) -o ${TARGET} $^ -L${LIBDIR} -ldl -l${LIB_NAME} -Wl,-rpath=${LIBDIR}
 
 # 生成目标文件
 $(OBJ_DIR)/%.o: %.cpp
