@@ -12,5 +12,8 @@
 #include "common/fiber.h"
 #include "http/http_server.h"
 #include "logger/logger.h"
+#include "rpc/rpc_connection_pool.h"
+#include "rpc/rpc_server.h"
+#include "rpc/rpc_service_registry.h"
 
 #endif  // DF_ACID_H

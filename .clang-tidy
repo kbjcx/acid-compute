@@ -1,0 +1,12 @@
+{
+    "Checks": "readability-identifier-naming,cppcoreguidelines-*,performance-*,bugprone-*,portability-*,modernize-*,google-*",
+    "CheckOptions": [
+        {
+            "key": "readability-identifier-naming.MemberPrefix",
+            "value": "m_"
+        },
+        {
+            
+        }
+    ]
+}
