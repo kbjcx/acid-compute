@@ -1,5 +1,6 @@
 #!/bin/bash
 pwd
+mkdir build
 cd build || return
 rm -f CMakeCache.txt
 cmake .. -DBUILD_DYNAMIC=ON

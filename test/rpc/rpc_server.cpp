@@ -20,7 +20,7 @@ int main() {
 
 
     // 执行lua脚本
-    if (luaL_dofile(Lua, "/home/llz/CPP/acid-compute/scripts/compute.lua") != 0) {
+    if (luaL_dofile(Lua, "/root/acid-compute/scripts/compute.lua") != 0) {
         // 脚本执行失败
         std::string error_message = lua_tostring(Lua, -1);
         std::cout << "Lua error: " << error_message << std::endl;
